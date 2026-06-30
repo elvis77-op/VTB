@@ -1,9 +1,9 @@
 # VM Trusted Bootup
-For multi-party collaboration scenarios, VTB (VM Trusted Bootup) allows a previewed open-sourced workload to be launched inside TDVM after all parties agree upon the trustiness of a customized work flow pre-loaded in Initrd/Initramfs. It is worth noting that VTB relies on TDX and RTMR check mechanism to achieve this goal.
+To achieve verifiable transparency, VTB (VM Trusted Bootup) enables a pre-reviewed, open-source workload to be launched inside a TDVM after a trusted verifier has confirmed the authenticity and integrity of a customized workflow pre-loaded in Initrd/Initramfs. It is worth noting that VTB leverages TDX and RTMR measurements to accomplish this goal.
 
 ## Overview
 
-There is an existing project: [Full Disk Encryption](https://github.com/cc-api/full-disk-encryption/blob/main), which implemented a method to first decrypt and then load an encrypted disk image in a TDVM. VTB revises the procedure by allowing a previewed open-sourced workload to be trusted and bootup in a TDVM. The reason why unencrypted OS images are needed is because for multi-party scenarios, encrypted OS images are black boxes that no other parties than the image owners can sit assured that they are trusted. Our method mainly refers to the design idea in chapter 14.4.2 in [Intel&reg; TDX Virtual Firmware Design Guide](https://www.intel.com/content/www/us/en/content-details/733585/intel-tdx-virtual-firmware-design-guide.html). It showcases how an open-sourced OS image is launched in a TDVM, which is trusted by all parties. 
+This method primarily draws from the design concepts outlined in Section 14.4.2 of [Intel&reg; TDX Virtual Firmware Design Guide](https://www.intel.com/content/www/us/en/content-details/733585/intel-tdx-virtual-firmware-design-guide.html). Rather than launching an encrypted OS image, this method demonstrates how an open-source OS image is launched within a TDVM, where its authenticity is verified by a trusted verifier to ensure a verifiable launch process. 
 
 
 ### Key Features
@@ -25,15 +25,12 @@ There is an existing project: [Full Disk Encryption](https://github.com/cc-api/f
 sequenceDiagram
     participant GH as VTB Github Portal
     participant CR as Public Clean Room
-    actor P-1 as Party One
-    actor P-2 as Party Two
+    actor P-1 as Trusted Verifier
     actor PR as Public Reviewers
-    Note over GH: Upload a sample OS image containing: <br>1. the data partition disk with a customized TDX attestation service <br>2. Initrd Codes with attestation agent and hashing agent
+    Note over GH: In the portal, a sample OS image containing: <br>1. Initrd with attestation agent and hashing agent<br>2. Root partition with a sample previewed workload
 	GH->>P-1: Download OS image
 	Note over P-1: Review and may modify OS image
-	GH->>P-2: Download OS image
-	Note over P-2: Review and may modify OS image
-	Note over PR: If necessary, all parties invite Public Reviewers to <br>further review OS image including Initrd codes
+	Note over PR: If necessary, may invite Public Reviewers to <br>further review OS image including Initrd codes
     PR->>CR: Once approved, OS image is <br>sent over to clean room for storage
 	Note over CR: OS image is stored for public download
     
@@ -43,39 +40,34 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     box rgba(19, 9, 137, 0.5) TDX VM
-      participant IR as Initrd Codes
+      participant IC as Initrd Codes
     end
-    participant P-1 as Party One Attestation Service
-    participant P-2 as Party Two Attestation Service
+    participant P-1 as Verifier's Attestation Service
     participant CR as Clean Room
     actor ADMIN as Operator
 
     rect rgba(230,230,230,0.5)
-        Note over P-1: Start Attestation Service with <br> URL as U-P-1 and certificate as C-P-1
-        P-1->>ADMIN: Send U-P-1 and C-P-1
-        Note over P-2: Start Attestation Service with <br> URL as U-P-2 and certificate as C-P-2
-        P-2->>ADMIN: Send U-P-2 and C-P-2
+        Note over P-1: Start Attestation Service with <br> URL as Url-V and certificate as Cert-V
+        P-1->>ADMIN: Send Url-V and Cert-V
         CR->>ADMIN: Pre-approved OS image is sent
-        Note over ADMIN: Get OS image from clean room, <br>merge URLs and Certificates into Initrd,<br> and get the merged OS image
+        Note over ADMIN: Get OS image from clean room, <br>merge Url-V and Cert-V into Initrd,<br> and get the merged OS image
         ADMIN->>P-1: Send the merged OS image
-        Note over P-1: Calculate data partition disk's hash <br>and expected RTMR in indirect/grub boot mode
-        ADMIN->>P-2: Send the merged OS image
-	    Note over P-2: Calculate data partition disk's hash <br>and expected RTMR in indirect/grub boot mode
-        ADMIN->>IR: Merged OS image is transferred to TDX VM
+        Note over P-1: Calculate root partition's hash Hash-Expected and <br>image's expected RTMR RTMR-Expected in indirect/grub boot mode
+        ADMIN->>IC: Merged OS image is transferred to TDX VM
 	    Note over ADMIN: Run OS image in indirect/grub mode
-        Note over IR: In early-boot stage, <br>Initrd attestation agent is triggered
-        Note over IR: Generate a signing key pair IR-key-pair.<br> Via gRPC, requests quote verification with party one
-        IR->>P-1: 
+        Note over IC: In early-boot stage, <br>Initrd attestation agent triggeres quote verification<br>with Verifier by looking at Url-V
+        Note over IC: 1. Generate a signing key pair IC-key-pair<br>2. Calculate root partition's hash RP-hash<br>Via gRPC, requests quote verification with the Verifier
+        IC->>P-1: 
         Note over P-1: Challenge with nonce
-        P-1->>IR:
-        Note over IR: Generate and send quote with nonce <br>and IR-key-pair public key in reportdata 
-	    IR->>P-1: 
-        Note over P-1: Verify quote against expected RTMR with <br>Intel#174; QAL and send back result as OK and <br>the expected hash locally calculated, <br>both signed by P-1's private key
-	    P-1->>IR: Signed result and expected hash value
-	    Note over IR: Verify result and hash by using <br>P-1's public key in C-P-1, <br>and continue the verification with P-2
-	IR<<->>P-2: Same procedure as that of P-1
-	Note over IR: Once hashes from both P-1 and P-2 are the same, <br>the hash can be considered as the expected hash. <br>It also means both parties agree Initrd codes are trusted. <br>Hashing agent begins to calculate the loaded data partition disk's <br>hash and compare it with the expected one. If OK, <br>then hashing agent ends Initrd session by switching to data partition disk
-    Note over IR: By now, data partition disk is launched, <br>together with the customized attestation service, <br>which is trusted by all parties
+        P-1->>IC:
+        Note over IC: 1. Use IC-key-pair private key to sign RP-hash and nonce <br>2. Generate quote with nonce, IC-hash, <br>and IC-key-pair public key in reportdata 
+	    IC->>P-1: Send quote, signed IC-hash, IC-key-pair certificate
+        Note over P-1: 1. Verify quote against RTMR-Expected by using Intel#174; QAL <br>2. Compare IC-hash with Hash-Expected <br>If OK, sign result as OK by using Verifier's private key  
+	    P-1->>IC: Signed result
+	    Note over IC: Verify result by using Verifier's public key in Cert-V
+        Note over IC: When verifying the result as OK, it means <br> Verifier agrees both Initrd and root partition are authenticated. 
+    Note over IC: Hashing agent ends Initrd session by switching to root partition 
+    Note over IC: By now, previewed workload is launched and trusted by the Verifier
     end	 
     
 ```
@@ -100,16 +92,16 @@ sequenceDiagram
 - [x] Basic quote verification via gRPC
   
 ## Future Work
-- [x] Finish the codes for each party's attestation service
-- [x] Finish the whole VTB process
+- [ ] Finish the codes for Verifier's attestation service
+- [ ] Finish the whole VTB process
 
 ### Security Enhancements
-- [x] Validate RTMR value changes when Initrd codes are changed
-- [x] Evaluate whether the hashing agent can ensure data partition disk is correctly hashed and intact during bootup
+- [ ] Validate RTMR value changes when Initrd codes are changed
+- [ ] Evaluate whether the hashing agent can ensure data partition disk is correctly hashed and intact during bootup
   
 ### Architectural Improvements
-- [x] Use TDVF CFV to configure and preload all parties' URLs and Certificates
-- [x] Use RA-TLS for quote verification
+- [ ] Use TDVF CFV to configure and preload Verifier's URL and Certificate
+- [ ] Use RA-TLS for quote verification
 
 
 ## Design Considerations for Future Versions
