@@ -1,0 +1,91 @@
+#!/bin/busybox sh
+
+echo "=== Early Boot Init Started ==="
+
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev
+mkdir -p /dev/pts
+mkdir -p /etc
+mount -t devpts devpts /dev/pts 2>/dev/null
+
+echo "=== Activating loopback ==="
+ip link set lo up 2>/dev/null || ifconfig lo 127.0.0.1 up
+
+echo "=== Loading VSOCK Modules ==="
+KERNEL_VER=$(uname -r)
+MODULE_BASE="/lib/modules/${KERNEL_VER}"
+
+echo "Kernel version: $KERNEL_VER"
+echo "Module base: $MODULE_BASE"
+
+tee -a /etc/tdx-attest.conf > /dev/null <<EOT
+port=4050
+EOT
+
+if [ -d "$MODULE_BASE" ]; then
+    echo "Available VSOCK modules:"
+    find "$MODULE_BASE" -name "*vsock*" -type f 2>/dev/null
+    
+    VSOCK_CORE=$(find "$MODULE_BASE" -name "vsock.ko" -type f 2>/dev/null | head -1)
+    if [ -n "$VSOCK_CORE" ]; then
+        echo "Loading: $VSOCK_CORE"
+        insmod "$VSOCK_CORE" 2>&1
+        echo "insmod result: $?"
+    else
+        echo "vsock.ko not found!"
+    fi
+
+    TRANSPORT_COMMON=$(find "$MODULE_BASE" -name "*virtio_transport_common*" -type f 2>/dev/null | head -1)
+    if [ -n "$TRANSPORT_COMMON" ]; then
+        echo "Loading: $TRANSPORT_COMMON"
+        insmod "$TRANSPORT_COMMON" 2>&1
+    fi
+
+    TRANSPORT=$(find "$MODULE_BASE" -name "*virtio_transport.ko" -type f 2>/dev/null | grep -v common | head -1)
+    if [ -n "$TRANSPORT" ]; then
+        echo "Loading: $TRANSPORT"
+        insmod "$TRANSPORT" 2>&1
+    fi
+
+    LOOPBACK=$(find "$MODULE_BASE" -name "*vsock_loopback*" -type f 2>/dev/null | head -1)
+    if [ -n "$LOOPBACK" ]; then
+        echo "Loading: $LOOPBACK"
+        insmod "$LOOPBACK" 2>&1
+    fi
+else
+    echo "Module directory not found: $MODULE_BASE"
+fi
+
+sleep 1
+
+echo ""
+echo "=== Module Status ==="
+cat /proc/modules | grep -i vsock || echo "No VSOCK modules loaded!"
+
+echo ""
+echo "=== Device Check ==="
+ls -la /dev/vsock /dev/vhost-vsock /dev/virtio-ports/* 2>/dev/null || echo "No VSOCK devices found"
+
+if [ -e /dev/vsock ] || lsmod | grep -q vsock; then
+    echo "=== Starting VSOCK Proxy ==="
+    /bin/socat TCP-LISTEN:50051,reuseaddr,fork VSOCK-CONNECT:2:50051 &
+    SOCAT_PID=$!
+    echo "socat PID: $SOCAT_PID"
+else
+    echo "=== VSOCK not available, using TCP mode ==="
+    echo "Starting server on TCP 50051..."
+    /bin/attestation_server &
+    echo "Server PID: $SERVER_PID"
+    sleep 2
+fi
+
+echo ""
+echo "=== Starting Client ==="
+sleep 1
+/bin/attestation_client
+echo "Client exit code: $?"
+
+echo ""
+echo "=== Init Complete ==="
+exec /bin/sh
