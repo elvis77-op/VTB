@@ -16,7 +16,7 @@ This method primarily draws from the design concepts outlined in Section 14.4.2 
 - Hashing mechanisms
 
 ## Architechture
-![Architecture.png](images/architecture.png)
+![Architecture.png](images/Architecture.png)
 
 
 ## System Flow
