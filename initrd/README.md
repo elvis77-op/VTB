@@ -106,36 +106,6 @@ sudo apt install -y zlib1g-dev
 
 ---
 
-# Install Networking Utilities
-
-```bash
-sudo apt install -y \
-    iproute2 \
-    udhcpc
-```
-
-Useful commands:
-
-```bash
-ip addr
-```
-
-```bash
-ip route
-```
-
----
-
-# Install Runtime Utilities
-
-```bash
-sudo apt install -y \
-    bash \
-    ca-certificates
-```
-
----
-
 # Verify gRPC Libraries
 
 You can check whether the shared libraries are installed correctly.
@@ -172,12 +142,18 @@ mkdir -p rootfs/run
 
 ---
 
+```bash
+chmod +x scripts/*.sh
+```
+
+---
+
 # Prepare Runtime Dependencies
 
 Run the dependency preparation script.
 
 ```bash
-bash prepare_rootfs_deps.sh "$(pwd)"
+bash scripts/prepare_rootfs_deps.sh "$(pwd)"
 ```
 
 This script copies the required runtime libraries into the generated root filesystem.
@@ -241,10 +217,6 @@ sudo apt install -y \
     libgrpc-dev \
     libssl-dev \
     zlib1g-dev \
-    iproute2 \
-    udhcpc \
-    bash \
-    ca-certificates \
     openssl \
     libssl3
 
@@ -258,7 +230,10 @@ mkdir -p rootfs/proc
 mkdir -p rootfs/sys
 mkdir -p rootfs/run
 
-bash prepare_rootfs_deps.sh "$(pwd)"
+chmod +x ./scripts/*.sh
+
+./scripts/prepare_rootfs_deps.sh "$(pwd)"
+./scripts/build_zstd.sh
 
 cmake -S . -B build
 
@@ -289,7 +264,3 @@ cmake --build build --target initrd
 | openssl | Supplies OpenSSL runtime utilities. |
 | libssl3 | Installs the OpenSSL runtime shared libraries. |
 | zlib1g-dev | Provides compression support required by several dependencies. |
-| iproute2 | Supplies networking utilities such as `ip`. |
-| udhcpc | Lightweight DHCP client for network configuration inside initramfs. |
-| bash | Shell used by build and helper scripts. |
-| ca-certificates | Provides trusted SSL certificates for secure network connections. |

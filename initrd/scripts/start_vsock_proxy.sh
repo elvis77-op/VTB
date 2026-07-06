@@ -24,7 +24,7 @@ echo "VSOCK listener:"
 ss -tlnp | grep 50051 || echo "  No TCP listener on 50051 (VSOCK doesn't show in TCP)"
 
 echo ""
-echo "✓ Host ready: VM can connect via VSOCK:2:50051"
+echo "Host ready: VM can connect via VSOCK:2:50051"
 
 echo $SERVER_PID > /tmp/server.pid
 echo $SOCAT_PID > /tmp/socat.pid

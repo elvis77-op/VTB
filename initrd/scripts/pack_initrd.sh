@@ -33,7 +33,7 @@ collect_all_libs() {
         
         if [ ! -f "${target_dir}/$(basename "$lib")" ]; then
             cp -v "$lib" "$target_dir/"
-            echo "  ✓ $(basename "$lib")"
+            echo " $(basename "$lib")"
         fi
         
         collect_all_libs "$lib" "$processed_libs"
@@ -109,17 +109,6 @@ collect_binary_deps() {
     find "${ROOTFS_DIR}" -name "*.so*" -type f | sort
 }
 
-
-
-create_init_script() {
-    echo ""
-    echo "=== Creating Init Script ==="
-    
-    chmod 755 ${ROOTFS_DIR}/init
-    
-    echo "Init script created"
-}
-
 create_busybox_symlinks() {
     echo ""
     echo "=== Creating BusyBox Symlinks ==="
@@ -164,7 +153,7 @@ LINKER_DST_DIR="${ROOTFS_DIR}/lib/x86_64-linux-gnu"
 if [ -f "$LINKER_SRC" ]; then
     mkdir -p "$LINKER_DST_DIR"
     cp -v "$LINKER_SRC" "$LINKER_DST_DIR/"
-    echo "  ✓ Linker copied to /lib/x86_64-linux-gnu/"
+    echo " Linker copied to /lib/x86_64-linux-gnu/"
 else
     LINKER_SRC="/lib64/ld-linux-x86-64.so.2"
     if [ -f "$LINKER_SRC" ]; then
@@ -175,16 +164,15 @@ fi
 
 mkdir -p "${ROOTFS_DIR}/lib64"
 ln -sf ../lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 "${ROOTFS_DIR}/lib64/ld-linux-x86-64.so.2" 2>/dev/null
-echo "  ✓ Created /lib64 symlink"
+echo " Created /lib64 symlink"
 
 if [ -f "${ROOTFS_DIR}/lib64/ld-linux-x86-64.so.2" ]; then
-    echo "  ✓ Linker accessible at /lib64/ld-linux-x86-64.so.2"
+    echo " Linker accessible at /lib64/ld-linux-x86-64.so.2"
 else
-    echo "  ✗ Linker symlink failed!"
+    echo " Linker symlink failed!"
 fi
 
 collect_binary_deps
-create_init_script
 create_busybox_symlinks
 pack_cpio
 

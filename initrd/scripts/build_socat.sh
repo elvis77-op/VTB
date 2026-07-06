@@ -39,9 +39,9 @@ LDFLAGS="-static" \
 
 echo "Checking VSOCK support in config..."
 if grep -q "WITH_VSOCK 1" config.h; then
-    echo "✓ VSOCK enabled successfully!"
+    echo "VSOCK enabled successfully!"
 else
-    echo "✗ ERROR: Failed to enable VSOCK. Checking config.log..."
+    echo "ERROR: Failed to enable VSOCK. Checking config.log..."
     grep -i vsock config.log | head -10
     exit 1
 fi
@@ -51,9 +51,9 @@ make -j$(nproc)
 
 echo "Verifying compiled binary..."
 if ./socat -V 2>&1 | grep -q "WITH_VSOCK 1"; then
-    echo "✓ Compiled socat supports VSOCK!"
+    echo "Compiled socat supports VSOCK!"
 else
-    echo "✗ ERROR: Compiled socat does NOT support VSOCK."
+    echo "ERROR: Compiled socat does NOT support VSOCK."
     exit 1
 fi
 

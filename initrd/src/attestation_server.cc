@@ -24,6 +24,7 @@
 #include <string>
 
 #include "attestation_service.grpc.pb.h"
+#include "utils.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -36,19 +37,38 @@ using attestation::v1::ChallengeRequest;
 using attestation::v1::QuoteVerificationReply;
 using attestation::v1::QuoteVerificationRequest;
 
+using attestation::utils::CryptoUtils;
+
 // ===== Service Implementation =====
 class AttestationServiceImpl final : public AttestationService::Service {
  public:
   Status Challenge(ServerContext* context,
                    const ChallengeRequest* request,
                    ChallengeReply* reply) override {
-    reply->set_nonce("hi " + request->name());
+
+    std::string nonce = CryptoUtils::GenerateNonce(32);
+
+    std::cout << "Generate nonce: " << nonce << std::endl;
+
+    // reply->set_nonce("hi " + request->name());
+    reply->set_nonce(nonce);
     return Status::OK;
   }
 
   Status QuoteVerification(ServerContext* context,
                            const QuoteVerificationRequest* request,
                            QuoteVerificationReply* reply) override {
+    std::string quote = request->quote();
+    std::string public_key = request->public_key();
+    std::string hash = request->hash();
+
+    std::cout << "=== Quote Verification Request ===" << std::endl;
+    // std::cout << "Quote length: " << quote.length() << " bytes" << std::endl;
+    std::cout << "Quote: " << quote << std::endl;
+    std::cout << "Public key length: " << public_key.length() << " bytes" << std::endl;
+    std::cout << "Guest image hash: " << hash << std::endl;
+
+
     reply->set_result("verified");
     return Status::OK;
   }

@@ -12,9 +12,7 @@ mount -t devpts devpts /dev/pts 2>/dev/null
 echo "=== Activating loopback ==="
 ip link set lo up 2>/dev/null || ifconfig lo 127.0.0.1 up
 
-echo "=== Loading VSOCK Modules ==="
-KERNEL_VER=$(uname -r)
-MODULE_BASE="/lib/modules/${KERNEL_VER}"
+sh install_vsock.sh
 
 echo "Kernel version: $KERNEL_VER"
 echo "Module base: $MODULE_BASE"
@@ -23,17 +21,19 @@ tee -a /etc/tdx-attest.conf > /dev/null <<EOT
 port=4050
 EOT
 
+sh install_tdg.sh
+
 if [ -d "$MODULE_BASE" ]; then
     echo "Available VSOCK modules:"
     find "$MODULE_BASE" -name "*vsock*" -type f 2>/dev/null
-    
+
     VSOCK_CORE=$(find "$MODULE_BASE" -name "vsock.ko" -type f 2>/dev/null | head -1)
     if [ -n "$VSOCK_CORE" ]; then
         echo "Loading: $VSOCK_CORE"
         insmod "$VSOCK_CORE" 2>&1
         echo "insmod result: $?"
     else
-        echo "vsock.ko not found!"
+        echo "✗ vsock.ko not found!"
     fi
 
     TRANSPORT_COMMON=$(find "$MODULE_BASE" -name "*virtio_transport_common*" -type f 2>/dev/null | head -1)
@@ -54,7 +54,7 @@ if [ -d "$MODULE_BASE" ]; then
         insmod "$LOOPBACK" 2>&1
     fi
 else
-    echo "Module directory not found: $MODULE_BASE"
+    echo "✗ Module directory not found: $MODULE_BASE"
 fi
 
 sleep 1
@@ -76,7 +76,9 @@ else
     echo "=== VSOCK not available, using TCP mode ==="
     echo "Starting server on TCP 50051..."
     /bin/attestation_server &
+    SERVER_PID=$!
     echo "Server PID: $SERVER_PID"
+
     sleep 2
 fi
 
