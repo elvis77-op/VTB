@@ -160,6 +160,16 @@ This script copies the required runtime libraries into the generated root filesy
 
 ---
 
+# Build Zstd
+
+```bash
+./scripts/build_zstd.sh
+```
+
+This script build zstd from source and will be used by vsock installation in initrd stage.
+
+---
+
 # Configure the Project
 
 Generate the build files.

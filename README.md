@@ -47,10 +47,10 @@ sequenceDiagram
     actor ADMIN as Operator
 
     rect rgba(230,230,230,0.5)
-        Note over P-1: Start Attestation Service with <br> URL as Url-V and certificate as Cert-V
-        P-1->>ADMIN: Send Url-V and Cert-V
+        Note over P-1: Start Attestation Service with <br> URL as Url-V and public key as PK-V
+        P-1->>ADMIN: Send Url-V and PK-V
         CR->>ADMIN: Pre-approved OS image is sent
-        Note over ADMIN: Get OS image from clean room, <br>merge Url-V and Cert-V into Initrd,<br> and get the merged OS image
+        Note over ADMIN: Get OS image from clean room, <br>merge Url-V and PK-V into Initrd,<br> and get the merged OS image
         ADMIN->>P-1: Send the merged OS image
         Note over P-1: Calculate root partition's hash Hash-Expected and <br>image's expected RTMR RTMR-Expected in indirect/grub boot mode
         ADMIN->>IC: Merged OS image is transferred to TDX VM
@@ -64,7 +64,7 @@ sequenceDiagram
 	    IC->>P-1: Send quote, signed IC-hash, IC-key-pair certificate
         Note over P-1: 1. Verify quote against RTMR-Expected by using Intel#174; QAL <br>2. Compare IC-hash with Hash-Expected <br>If OK, sign result as OK by using Verifier's private key  
 	    P-1->>IC: Signed result
-	    Note over IC: Verify result by using Verifier's public key in Cert-V
+	    Note over IC: Verify result by using Verifier's public key in PK-V
         Note over IC: When verifying the result as OK, it means <br> Verifier agrees both Initrd and root partition are authenticated. 
     Note over IC: Hashing agent ends Initrd session by switching to root partition 
     Note over IC: By now, previewed workload is launched and trusted by the Verifier
